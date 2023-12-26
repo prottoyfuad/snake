@@ -1,0 +1,7 @@
+#!/bin/bash
+if gcc asn.c -lncurses -o asn; then
+  ./asn
+  rm -f asn
+else
+  echo "compilation error!"
+fi
