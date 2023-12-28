@@ -1,16 +1,44 @@
 
-#include <stdlib.h>
 #include <curses.h>
+#include <stdlib.h>
 #include <unistd.h>
    
-const int n = 20, SEC = 1E6;
-int x, y, sx = 1, sy = 2, fx, fy, dx, dy, score;
+const int SEC = 1E6, LEVEL = 8; // 0 < LEVEL <= SEC
+const int n = 20;
+const int sx = 1, sy = 2;
+const int dx[] = {0, 1, 0, -1};
+const int dy[] = {1, 0, -1, 0};
+const int keys[] = {KEY_RIGHT, KEY_DOWN, KEY_LEFT, KEY_UP};
+
+int fx, fy, dir, score;
 
 void draw_square(WINDOW* win) {
-  for (int i = 0; i < n; i++) mvwaddstr(win, i * sx, 0 * sy, "#");
-  for (int i = 0; i < n; i++) mvwaddstr(win, i * sx, (n - 1) * sy, "#");
-  for (int j = 1; j < n - 1; j++) mvwaddstr(win, 0 * sx, j * sy, "#");
-  for (int j = 1; j < n - 1; j++) mvwaddstr(win, (n - 1) * sx, j * sy, "#");
+  for (int i = 0; i < n; i++) {
+    mvwaddstr(win, i * sx, 0 * sy, "#");
+  }
+  for (int i = 0; i < n; i++) {
+    mvwaddstr(win, i * sx, (n - 1) * sy, "#");
+  }
+  for (int j = 1; j < n - 1; j++) {
+    mvwaddstr(win, 0 * sx, j * sy, "#");
+  }
+  for (int j = 1; j < n - 1; j++) {
+    mvwaddstr(win, (n - 1) * sx, j * sy, "#");
+  }
+}
+
+#define L 255
+int bx[L + 1], by[L + 1];
+int head, length;
+
+void draw_buffer(WINDOW* win) {
+  mvwaddstr(win, fx * sx, fy * sy, score % (10 * LEVEL) == (5 * LEVEL) ? "$" : "*");
+  int x = bx[head] * sx;
+  int y = by[head] * sy;
+  mvwaddstr(win, x, y, "@");
+  for (int j = 1; j < length; j++) {
+    mvwaddstr(win, bx[(head + j) & L] * sx, by[(head + j) & L] * sy, "O");
+  }
 }
 
 bool inside(int i, int j) {
@@ -21,80 +49,103 @@ bool inside(int i, int j) {
   return 1;
 }
 
-char result[12] = "Score:";
+#define R 24
+char result[R] = "Score:";
+
 void update_score() {
-  if (score % 10 == 5) {
-    score += 5;
-  } else {
-    score += 1;
-  }
   int x = score;
   if (x == 0) {
-    result[10] = '0';
+    result[R - 4] = '0';
   }
-  for (int i = 10; x > 0; i--) {
+  for (int i = R - 4; x > 0; i--) {
     result[i] = (char) (48 + x % 10);
     x /= 10;
   }
 }
 
 void update_food() {
-  fx = rand() % (n - 2) + 1;
-  fy = rand() % (n - 2) + 1;
+  int bad; 
+  do {
+    fx = rand() % (n - 2) + 1;
+    fy = rand() % (n - 2) + 1;
+    bad = 0;
+    for (int j = 0; j < length; j++) {
+      int i = (head + j) & L;
+      bad |= bx[i] == fx && by[i] == fy;
+    }
+  } while (bad);
+}
+
+bool update_snake() {
+  int h = head;
+  if (--head < 0) {
+    head = L;
+  }
+  bx[head] = bx[h] + dx[dir];
+  by[head] = by[h] + dy[dir];
+  for (int j = 1; j < length; j++) {
+    int i = (head + j) & L;
+    if (bx[i] == bx[head] && by[i] == by[head]) {
+      return 0;
+    }
+  }
+  int tail = (head + length) & L;
+  return inside(bx[head], by[head]);
 }
 
 int main() {
   srand(97);
+  for (int i = 6; i < R - 1; i++) {
+    result[i] = ' ';
+  }
+  result[R - 1] = 0;
+  for (int i = 0; i <= L; i++) {
+    bx[i] = -1;
+    by[i] = -1;
+  }
+  length = 3;
+  head = 0;
+  for (int i = 0; i < length; i++) {
+    bx[i] = n / 2;
+    by[i] = length - i - 1;
+  }
   WINDOW* win = initscr();
   keypad(win, true);
   nodelay(win, true);  
-  x = n / 2;
-  y = 0;
-  dx = 0;
-  dy = 1;
+  dir = 0;
+  score = 0;
   update_food();
-  for (int i = 6; i < 12; i++) {
-    result[i] = ' ';
-  }
-  result[11] = 0;
-  score = -1;
   update_score();
-  for (bool gameOn = 1; gameOn; ) {
+  while (true) {
     int key = wgetch(win);
-    switch (key) {
-      case KEY_RIGHT: 
-        dx = 0;
-        dy = 1;
-        break;
-      case KEY_DOWN:
-        dx = 1;
-        dy = 0;
-        break;
-      case KEY_LEFT:
-        dx = 0;
-        dy = -1;
-        break;
-      case KEY_UP:
-        dx = -1;
-        dy = 0;
-        break;
+    if (key == keys[(dir + 1) & 3]) {
+      dir = (dir + 1) & 3;
     }
-    x += dx;
-    y += dy;
-    gameOn &= inside(x, y);
-    if (x == fx && y == fy) {
-      update_food();
-      update_score();
+    if (key == keys[(dir + 3) & 3]) {
+      dir = (dir + 3) & 3;
+    }
+    if (!update_snake()) {
+      break;
     }
     erase();
     draw_square(win);
-    mvwaddstr(win, x * sx, y * sy, "o");
-    mvwaddstr(win, fx * sx, fy * sy, score % 10 == 5 ? "$" : "*");
+    if (bx[head] == fx && by[head] == fy) {
+      update_food();
+      if (score % (10 * LEVEL) == (5 * LEVEL)) {
+        score += 5 * LEVEL;
+      } else {
+        score += LEVEL;
+        length += 1;
+      }
+      update_score();
+    }
+    draw_buffer(win);
     mvwaddstr(win, n * sx, 0, result);
-    usleep(SEC / 8); 
+    usleep(SEC / LEVEL); 
   }
-  mvwaddstr(win, n * sx / 2, 5, "GAME OVER!");
-  mvwaddstr(win, n * sx / 2 + 1, 5, result);
+  mvwaddstr(win, n * sx / 2, 5, "  GAME OVER!   ");
+  mvwaddstr(win, n * sx / 2 + 1, 5, "  ");
+  mvwaddstr(win, n * sx / 2 + 1, 7, result);
   for (int i = 0; i < 2; i++) {
     while (wgetch(win) == ERR) {}
   }
