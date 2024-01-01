@@ -95,59 +95,71 @@ bool update_snake() {
 
 int main() {
   srand(97);
-  for (int i = 6; i < R - 1; i++) {
-    result[i] = ' ';
-  }
-  result[R - 1] = 0;
-  for (int i = 0; i <= L; i++) {
-    bx[i] = -1;
-    by[i] = -1;
-  }
-  length = 3;
-  head = 0;
-  for (int i = 0; i < length; i++) {
-    bx[i] = n / 2;
-    by[i] = length - i - 1;
-  }
   WINDOW* win = initscr();
   keypad(win, true);
   nodelay(win, true);  
-  dir = 0;
-  score = 0;
-  update_food();
-  update_score();
   while (true) {
-    int key = wgetch(win);
-    if (key == keys[(dir + 1) & 3]) {
-      dir = (dir + 1) & 3;
+    for (int i = 6; i < R - 1; i++) {
+      result[i] = ' ';
     }
-    if (key == keys[(dir + 3) & 3]) {
-      dir = (dir + 3) & 3;
+    result[R - 1] = 0;
+    for (int i = 0; i <= L; i++) {
+      bx[i] = -1;
+      by[i] = -1;
     }
-    if (!update_snake()) {
+    length = 3;
+    head = 0;
+    for (int i = 0; i < length; i++) {
+      bx[i] = n / 2;
+      by[i] = length - i - 1;
+    }
+    dir = 0;
+    score = 0;
+    update_food();
+    update_score();
+    while (true) {
+      int key = wgetch(win);
+      if (key == keys[(dir + 1) & 3]) {
+        dir = (dir + 1) & 3;
+      }
+      if (key == keys[(dir + 3) & 3]) {
+        dir = (dir + 3) & 3;
+      }
+      if (!update_snake()) {
+        break;
+      }
+      erase();
+      draw_square(win);
+      if (bx[head] == fx && by[head] == fy) {
+        update_food();
+        if (score % (10 * LEVEL) == (5 * LEVEL)) {
+          score += 5 * LEVEL;
+        } else {
+          score += LEVEL;
+          length += 1;
+        }
+        update_score();
+      }
+      draw_buffer(win);
+      mvwaddstr(win, n * sx, 0, result);
+      usleep(SEC / LEVEL); 
+    }
+    mvwaddstr(win, n * sx / 2 - 2, 5, "  GAME OVER!   ");
+    mvwaddstr(win, n * sx / 2 - 1, 5, "  ");
+    mvwaddstr(win, n * sx / 2 - 1, 7, result);
+    mvwaddstr(win, n * sx / 2 + 1, 3, " Press RIGHT_ARROW to play again!");
+    mvwaddstr(win, n * sx / 2 + 2, 3, " Press LEFT_ARROW to quit game!");
+    mvwaddstr(win, n * sx, R, "");
+    int que;
+    do {
+      que = wgetch(win);
+      if (que == KEY_LEFT || que == KEY_RIGHT) {
+        break;
+      }
+    } while (true);
+    if (que == KEY_LEFT) {
       break;
     }
-    erase();
-    draw_square(win);
-    if (bx[head] == fx && by[head] == fy) {
-      update_food();
-      if (score % (10 * LEVEL) == (5 * LEVEL)) {
-        score += 5 * LEVEL;
-      } else {
-        score += LEVEL;
-        length += 1;
-      }
-      update_score();
-    }
-    draw_buffer(win);
-    mvwaddstr(win, n * sx, 0, result);
-    usleep(SEC / LEVEL); 
-  }
-  mvwaddstr(win, n * sx / 2, 5, "  GAME OVER!   ");
-  mvwaddstr(win, n * sx / 2 + 1, 5, "  ");
-  mvwaddstr(win, n * sx / 2 + 1, 7, result);
-  for (int i = 0; i < 2; i++) {
-    while (wgetch(win) == ERR) {}
   }
   endwin();
   return 0;
