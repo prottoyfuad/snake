@@ -150,6 +150,7 @@ int main() {
     mvwaddstr(win, n * sx / 2 + 1, 3, " Press RIGHT_ARROW to play again!");
     mvwaddstr(win, n * sx / 2 + 2, 3, " Press LEFT_ARROW to quit game!");
     mvwaddstr(win, n * sx, R, "");
+    while (wgetch(win) == ERR) {}
     int que;
     do {
       que = wgetch(win);
